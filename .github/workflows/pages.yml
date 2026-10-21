@@ -1,0 +1,65 @@
+name: Website
+
+# Build the website and its JSON API from the latest data release, so the site and the downloadable
+# data are always the same version, and publish it with GitHub Pages. Runs after each data release,
+# on every push to main (site code changes), and by hand.
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [Data release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Install
+        run: uv sync --locked
+
+      - name: Download the latest data release
+        id: release
+        run: |
+          tag=$(gh release view --json tagName --jq .tagName)
+          gh release download "$tag" --pattern 'maritimes-rv-data-*.zip' --dir release
+          unzip -q release/maritimes-rv-data-*.zip -d release
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "dir=$(ls -d release/maritimes-rv-data-*/)" >> "$GITHUB_OUTPUT"
+
+      - name: Build site
+        run: >-
+          uv run maritimes-rv site
+          --clean "${{ steps.release.outputs.dir }}clean"
+          --products "${{ steps.release.outputs.dir }}products"
+          --tag "${{ steps.release.outputs.tag }}"
+          --out site
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

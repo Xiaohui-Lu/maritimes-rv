@@ -216,7 +216,7 @@ def build_release(clean_dir: Path, products_dir: Path, raw_dir: Path, out_dir: P
     archive = out_dir / f"{root}.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as z:
         z.writestr(f"{root}/README.md", readme)
-        z.writestr(f"{root}/data_dictionary.csv", dictionary.to_csv(index=False))
+        z.writestr(f"{root}/data_dictionary.csv", dictionary.to_csv(index=False, lineterminator="\n"))
         z.writestr(f"{root}/sources.json", sources)
         for subdir, source_dir, names in (("clean", clean_dir, CLEAN), ("products", products_dir, PRODUCTS)):
             for name in names:

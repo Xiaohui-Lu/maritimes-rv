@@ -41,7 +41,7 @@ def write_tables(tables: dict[str, pd.DataFrame], raw_dir: Path, out_dir: Path) 
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, table in tables.items():
         table.to_parquet(out_dir / f"{name}.parquet", index=False)
-        table.to_csv(out_dir / f"{name}.csv", index=False)
+        table.to_csv(out_dir / f"{name}.csv", index=False, lineterminator="\n")
 
     # Records exactly which source files produced these tables, since DFO may replace them in place.
     manifest = {
@@ -51,7 +51,7 @@ def write_tables(tables: dict[str, pd.DataFrame], raw_dir: Path, out_dir: Path) 
         "tables": {name: {"rows": len(table), "columns": list(table.columns)} for name, table in tables.items()},
         "qc_counts": qc_counts(tables),
     }
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8", newline="\n")
 
 
 def _describe(path: Path, raw_dir: Path) -> dict:
@@ -84,7 +84,7 @@ def build_products(clean_dir: Path, out_dir: Path, convert: bool = False,
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, table in products.items():
         table.to_parquet(out_dir / f"{name}.parquet", index=False)
-        table.to_csv(out_dir / f"{name}.csv", index=False)
+        table.to_csv(out_dir / f"{name}.csv", index=False, lineterminator="\n")
 
     clean_manifest = clean_dir / "manifest.json"
     manifest = {
@@ -100,5 +100,5 @@ def build_products(clean_dir: Path, out_dir: Path, convert: bool = False,
         },
         "tables": {name: {"rows": len(table), "columns": list(table.columns)} for name, table in products.items()},
     }
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8", newline="\n")
     return products

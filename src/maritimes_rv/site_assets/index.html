@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maritimes RV survey indices</title>
+  <meta name="description" content="Stratified abundance and biomass indices and bottom temperature from the DFO Maritimes summer research vessel survey open data, with a read-only JSON API.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header">
+    <h1>Maritimes summer RV survey</h1>
+    <p class="lede">Stratified abundance and biomass indices and summer bottom temperature from the public release of the DFO Maritimes summer research vessel bottom trawl survey: Scotian Shelf and Bay of Fundy, <span id="years">1970–2023</span>.</p>
+    <nav class="links" aria-label="Project links">
+      <a id="link-release" href="#">Download all tables</a>
+      <a href="#api">JSON API</a>
+      <a href="#notes">Before comparing years</a>
+      <a id="link-repo" href="#">Source code and method</a>
+    </nav>
+  </header>
+
+  <main>
+    <form class="controls" id="controls" onsubmit="return false">
+      <label class="control species">
+        <span>Species</span>
+        <input id="species" list="species-options" autocomplete="off" spellcheck="false" placeholder="Search by common or scientific name">
+        <datalist id="species-options"></datalist>
+      </label>
+      <label class="control">
+        <span>Region</span>
+        <select id="region">
+          <option value="core">Core area (strata 440–495)</option>
+          <option value="4VW">4VW (strata 440–466)</option>
+          <option value="4X5Y">4X5Y (strata 470–495)</option>
+        </select>
+      </label>
+      <div class="control metric" role="radiogroup" aria-labelledby="metric-label">
+        <span id="metric-label">Measure</span>
+        <div class="options">
+          <label><input type="radio" name="metric" value="weight" checked> kg per tow</label>
+          <label><input type="radio" name="metric" value="count"> number per tow</label>
+        </div>
+      </div>
+    </form>
+
+    <p class="status" id="status" role="status"></p>
+
+    <section class="card" aria-labelledby="index-title">
+      <h2 id="index-title">Loading…</h2>
+      <p class="subtitle" id="index-subtitle"></p>
+      <div class="chart" id="index-chart" tabindex="0" aria-describedby="index-subtitle"></div>
+      <div class="card-footer">
+        <details>
+          <summary>Show the numbers</summary>
+          <div class="table-wrap" id="index-table"></div>
+        </details>
+        <button type="button" id="download">Download CSV</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="temp-title">
+      <h2 id="temp-title">Summer bottom temperature</h2>
+      <p class="subtitle" id="temp-subtitle"></p>
+      <div class="chart" id="temp-chart" tabindex="0" aria-describedby="temp-subtitle"></div>
+      <div class="card-footer">
+        <details>
+          <summary>Show the numbers</summary>
+          <div class="table-wrap" id="temp-table"></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="card prose" id="notes">
+      <h2>Before comparing years</h2>
+      <ul>
+        <li><strong>Grey points are not comparable.</strong> In those years the survey covered less than 90% of the region's area: <span id="incomplete-years">see the data</span>.</li>
+        <li><strong>The trawl and vessels changed.</strong> Before 1982 the survey used the Yankee #36 trawl on the A.T. Cameron. Catchability differs between vessels and trawls, and no conversion factors are applied here, so long series are not strictly comparable across that line.</li>
+        <li><strong>Values are per standard tow</strong> of 1.75 nautical miles. Totals in the data assume the trawl catches every fish in its path, so they are relative indices, not stock size.</li>
+        <li><strong>Bottom temperature has gaps</strong> where the source data has no readings: <span id="temp-gaps">see the data</span>.</li>
+      </ul>
+      <p>Method, validation against DFO's code and published indices, and the data issues found: <a id="link-method" href="#">project README</a>.</p>
+    </section>
+
+    <section class="card prose" id="api">
+      <h2>JSON API</h2>
+      <p>Everything on this page is read from static JSON files with stable URLs, so code can use them directly. Series are columns of equal length; missing values are <code>null</code>.</p>
+      <div class="table-wrap">
+        <table class="endpoints">
+          <thead><tr><th>Endpoint</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><code>api/v1/meta.json</code></td><td>Release, source checksums, regions and a description of every field</td></tr>
+            <tr><td><code>api/v1/species.json</code></td><td>Every taxon caught, with its code, most frequently caught first</td></tr>
+            <tr><td><code>api/v1/index/&lt;code&gt;.json</code></td><td>Yearly index series for one species, by region</td></tr>
+            <tr><td><code>api/v1/bottom_temp.json</code></td><td>Yearly bottom temperature, by region</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Python</h3>
+      <pre><code id="example-python"></code></pre>
+      <h3>R</h3>
+      <pre><code id="example-r"></code></pre>
+      <p>For complete tables (every tow and catch record), <a id="link-release-2" href="#">download the data release</a> (Parquet and CSV).</p>
+    </section>
+  </main>
+
+  <footer>
+    <p id="provenance"></p>
+    <p>Contains information licensed under the <a href="https://open.canada.ca/en/open-government-licence-canada">Open Government Licence – Canada</a>. Source: Fisheries and Oceans Canada, <a href="https://open.canada.ca/data/en/dataset/1366e1f1-e2c8-4905-89ae-e10f1be0a164">Maritimes Summer Research Vessel Survey</a>.</p>
+    <p>An independent project; not produced or endorsed by Fisheries and Oceans Canada.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -20,6 +20,7 @@ src/maritimes_rv/reference/    hand-curated reference tables shipped with the pa
 data/clean/                    cleaned tables: one Parquet and one CSV per table, plus manifest.json; not in git
 data/products/                 indices and bottom temperature, plus manifest.json; not in git
 dist/                          a data release package (maritimes-rv release); not in git
+site/                          the website and its JSON API (maritimes-rv site); not in git
 ```
 
 `maritimes-rv fetch` fills `data/raw/`. `maritimes-rv sources` prints a content fingerprint of those files; the monthly release workflow compares it with the latest release to decide whether to publish a new one.

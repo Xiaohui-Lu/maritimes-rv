@@ -8,6 +8,8 @@ It turns the raw open-data files into:
 2. **Stratified mean abundance and biomass indices** for 623 taxa, by region and year, with standard errors and coverage flags.
 3. **Stratified mean summer bottom temperature** by region and year.
 
+**Browse them at [xiaohui-lu.github.io/maritimes-rv](https://xiaohui-lu.github.io/maritimes-rv/)**: charts, tables and CSV downloads for any species and region, backed by a static JSON API.
+
 The method follows DFO's own R implementation and is validated against it and against published DFO indices (see [Validation](#validation)).
 
 > This is an independent project. It is not produced, reviewed or endorsed by Fisheries and Oceans Canada.
@@ -33,7 +35,7 @@ Each `manifest.json` records the SHA-256 of the input files and the parameters u
 
 ## Ready-made data
 
-Each GitHub release of this repository includes `maritimes-rv-data-<date>.zip`. It contains:
+Each [release](https://github.com/Xiaohui-Lu/maritimes-rv/releases) of this repository includes `maritimes-rv-data-<date>.zip`. The newest is always at [releases/latest](https://github.com/Xiaohui-Lu/maritimes-rv/releases/latest). It contains:
 
 - every cleaned table and product, as both Parquet and CSV;
 - `data_dictionary.csv`, describing every column;
@@ -50,9 +52,33 @@ haddock = index.query("species_code == 11 and region == '4X5Y' and complete")
 
 R users can read the same files with `arrow::read_parquet()`. With DuckDB, the files can be queried directly in SQL.
 
+## Website and JSON API
+
+[xiaohui-lu.github.io/maritimes-rv](https://xiaohui-lu.github.io/maritimes-rv/) charts the index of any species, for any region, with its 95% interval and the bottom temperature. Each chart has a table view and a CSV download, and the selection is kept in the URL so a view can be shared.
+
+The page reads static JSON files, which can also be used directly from code:
+
+| Endpoint | Contents |
+|---|---|
+| `api/v1/meta.json` | release, source checksums, regions, incomplete years, vessel names, field descriptions |
+| `api/v1/species.json` | every taxon caught, with its code, most frequently caught first |
+| `api/v1/index/<code>.json` | yearly index series for one species, by region (columns of equal length; missing values are `null`) |
+| `api/v1/bottom_temp.json` | yearly bottom temperature, by region |
+
+```python
+import json, urllib.request
+import pandas as pd
+
+base = "https://xiaohui-lu.github.io/maritimes-rv/api/v1/"
+haddock = json.load(urllib.request.urlopen(base + "index/11.json"))
+df = pd.DataFrame(haddock["regions"]["4X5Y"])
+```
+
+The site is static on purpose. GitHub Pages serves it with no server to run or keep alive, and it is rebuilt from the latest data release, so the website and the downloadable data are always the same version. `maritimes-rv site` builds it locally into `site/`.
+
 ## Automated updates
 
-Two GitHub Actions workflows keep the data current and the code honest.
+Three GitHub Actions workflows keep the data current and the code honest.
 
 - **CI** (`.github/workflows/ci.yml`) runs on every push and pull request. It downloads the real data and runs the full test suite, including the regression test against the published DFO haddock index.
 - **Data release** (`.github/workflows/data-release.yml`) runs on the 1st of each month:
@@ -61,6 +87,7 @@ Two GitHub Actions workflows keep the data current and the code honest.
   3. Only if the data changed does it rebuild everything, rerun the tests, and publish a new release (`maritimes-rv release`). It can also be run by hand, with an option to publish regardless.
 
   A source change the pipeline cannot handle stops the release instead of publishing wrong numbers. For example, a new vessel missing from the reference tables fails the integrity checks.
+- **Website** (`.github/workflows/pages.yml`) rebuilds the site from the latest release's data and publishes it to GitHub Pages. It runs after each data release and on every push to `main`.
 
 ## Outputs
 
@@ -151,10 +178,10 @@ Done:
 - Stratified abundance and biomass indices and bottom-temperature summaries, validated against DFO's code and published indices
 - Example analysis (4X5Y haddock)
 - `fetch` command, monthly update check and automated data releases
+- Website with charts, tables and CSV downloads by species and region, backed by a static JSON API
 
 Planned:
 
-- **A query layer**: a static web page to browse and download indices by species and region, or a small read-only API.
 - **Bottom temperature merged from CTD profiles** (CIOOS Atlantic ERDDAP), to fill the years the survey tables lack (2005, 2021–2023).
 - **WoRMS identifiers for species**, for interoperability with OBIS and FishGlob.
 
@@ -176,13 +203,14 @@ This project differs in being Python-based, depending only on the public open-da
 ## Project layout
 
 ```
-src/maritimes_rv/   fetch.py -> raw.py -> clean.py -> qc.py -> index.py -> release.py; pipeline.py and cli.py tie them together
+src/maritimes_rv/   fetch.py -> raw.py -> clean.py -> qc.py -> index.py -> release.py -> staticsite.py; pipeline.py and cli.py tie them together
   reference/        hand-curated tables (vessel names, conversion factors), each row with its source
+  site_assets/      the website page (plain HTML, CSS and JavaScript; no external libraries)
 tests/              unit tests and end-to-end tests on the real data (skipped if data/raw is absent)
 validation/         DFO code port, published-index comparison, transcribed published tables
 examples/           4X5Y haddock analysis, figures and the table behind them
 docs/               data_notes.md (raw data issues in detail), data_model.md (tables, method, validation)
-.github/workflows/  CI tests and the monthly data-release check
+.github/workflows/  CI tests, the monthly data-release check, and the website build
 ```
 
 Run the tests with `uv run pytest`.

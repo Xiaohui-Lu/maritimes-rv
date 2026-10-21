@@ -5,6 +5,7 @@ maritimes-rv clean   [--raw DIR] [--out DIR]           build the cleaned tables
 maritimes-rv index   [--clean DIR] [--out DIR] [--convert] [--species CODE ...]
 maritimes-rv sources [--raw DIR] [--compare FILE]      print the source fingerprint, or compare with a saved one
 maritimes-rv release [--tag TAG] [--out DIR]           package a data release
+maritimes-rv site    [--clean DIR] [--products DIR] [--tag TAG] [--out DIR]   build the website and JSON API
 """
 import argparse
 import json
@@ -15,6 +16,7 @@ from pathlib import Path
 from .fetch import compare_fingerprints, fetch, fingerprint
 from .pipeline import build, build_products, qc_counts
 from .release import build_release
+from .staticsite import build_site
 
 RAW, CLEAN, PRODUCTS = Path("data/raw"), Path("data/clean"), Path("data/products")
 
@@ -50,6 +52,12 @@ def main(argv: list[str] | None = None) -> None:
     rel.add_argument("--raw", type=Path, default=RAW)
     rel.add_argument("--clean", type=Path, default=CLEAN)
     rel.add_argument("--products", type=Path, default=PRODUCTS)
+
+    web = commands.add_parser("site", help="build the static website and its JSON API")
+    web.add_argument("--clean", type=Path, default=CLEAN, help="cleaned tables (default: data/clean)")
+    web.add_argument("--products", type=Path, default=PRODUCTS, help="indices (default: data/products)")
+    web.add_argument("--tag", default="local", help="data release the site shows (default: local)")
+    web.add_argument("--out", type=Path, default=Path("site"), help="output directory, replaced (default: site)")
     args = parser.parse_args(argv)
 
     if args.command == "fetch":
@@ -83,11 +91,16 @@ def main(argv: list[str] | None = None) -> None:
         for change in changes:
             print(f"- {change}")
         sys.exit(1)
-    else:
+    elif args.command == "release":
         files = build_release(args.clean, args.products, args.raw, args.out, args.tag)
         print(f"wrote release {args.tag} to {args.out}")
         for path in files:
             print(f"  {path.stat().st_size:>12,} bytes  {path.name}")
+    else:
+        counts = build_site(args.clean, args.products, args.out, args.tag)
+        size = sum(p.stat().st_size for p in args.out.rglob("*") if p.is_file())
+        print(f"wrote site for {args.tag} to {args.out}: {counts['species']} species, "
+              f"{counts['files']} files, {size / 1e6:.1f} MB")
 
 
 if __name__ == "__main__":

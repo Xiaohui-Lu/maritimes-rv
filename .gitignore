@@ -3,6 +3,7 @@ data/raw/
 data/clean/
 data/products/
 dist/
+site/
 
 .venv/
 __pycache__/
