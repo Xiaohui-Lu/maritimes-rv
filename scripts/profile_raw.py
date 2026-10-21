@@ -1,4 +1,4 @@
-"""Profile the raw DFO Maritimes summer RV survey export (step 1). Usage: python profile_raw.py data/raw"""
+"""Profile the raw DFO Maritimes summer RV survey export. Usage: python profile_raw.py data/raw"""
 import json
 import sys
 from pathlib import Path

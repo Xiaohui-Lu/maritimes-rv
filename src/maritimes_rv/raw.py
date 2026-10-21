@@ -30,7 +30,7 @@ def read_csv_table(raw_dir: Path, table: str) -> pd.DataFrame:
 
 
 def read_strata(raw_dir: Path) -> pd.DataFrame:
-    """Strata from an ESRI REST layer 1 query response (see docs/data_notes.md section 6)."""
+    """Strata from an ESRI REST layer 1 query response (see docs/data_notes.md section 5)."""
     payload = json.loads((raw_dir / STRATA_FILE).read_text(encoding="utf-8"))
     return pd.DataFrame([feature["attributes"] for feature in payload["features"]])
 

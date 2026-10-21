@@ -97,7 +97,7 @@ def clean_species(raw: pd.DataFrame) -> pd.DataFrame:
 def clean_strata(raw: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame({
         "stratum": raw["STRAT"].astype("string"),
-        # Units are not documented; tow depths only fit the bands when read as fathoms (data_notes.md 3.4).
+        # Units are not documented; tow depths only fit the bands when read as fathoms (data_notes.md 3.5).
         "depth_min_fm": raw["DMIN"].astype("Int16"),
         "depth_max_fm": raw["DMAX"].astype("Int16"),
         "area_nmi2": raw["AREA"].astype("Float64"),

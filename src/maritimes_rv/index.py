@@ -9,7 +9,7 @@ standard error se_h = s_h / sqrt(n_h):
 
 Strata with a single tow have no variance estimate, so they are left out of the SE and the SE
 weights are renormalised over the remaining strata. That is what DFO's code does; see
-docs/data_model.md section 5 for this and the places where this module deliberately differs.
+docs/data_model.md section 4.2 for this and the places where this module deliberately differs.
 """
 from importlib import resources
 

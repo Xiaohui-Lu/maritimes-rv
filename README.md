@@ -140,6 +140,7 @@ src/maritimes_rv/   raw.py -> clean.py -> qc.py -> index.py; pipeline.py and cli
 tests/              unit tests and end-to-end tests on the real data (skipped if data/raw is absent)
 validation/         DFO code port, published-index comparison, transcribed published tables
 examples/           4X5Y haddock analysis, figures and the table behind them
+docs/               data_notes.md (raw data issues in detail), data_model.md (tables, method, validation)
 ```
 
 Run the tests with `uv run pytest`.
