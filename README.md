@@ -6,7 +6,7 @@ It turns the raw open-data files into:
 
 1. **Clean, typed tables** (Parquet and CSV). Every quality problem is flagged rather than silently dropped.
 2. **Stratified mean abundance and biomass indices** for 623 taxa, by region and year, with standard errors and coverage flags.
-3. **Stratified mean summer bottom temperature** by region and year.
+3. **Stratified mean summer bottom temperature** by region and year. Gaps in the survey tables (2005, 2022, 2023) are filled from the CTD cast made at each station, which DFO publishes separately.
 
 **Browse them at [xiaohui-lu.github.io/maritimes-rv](https://xiaohui-lu.github.io/maritimes-rv/)**: charts, tables and CSV downloads for any species and region, backed by a static JSON API.
 
@@ -29,7 +29,11 @@ uv run maritimes-rv clean    # data/raw      -> data/clean   (5 tables + manifes
 uv run maritimes-rv index    # data/clean    -> data/products (index, bottom_temp + manifest)
 ```
 
-`fetch` downloads the survey's CSV package from open.canada.ca and the stratum areas from DFO's GIS service. The stratum areas are not in the CSV package.
+`fetch` downloads three things:
+
+- the survey's CSV package, from open.canada.ca;
+- the stratum areas, from DFO's GIS service (they are not in the CSV package);
+- the deepest sample of each summer CTD profile, from CIOOS Atlantic ERDDAP.
 
 Each `manifest.json` records the SHA-256 of the input files and the parameters used. DFO updates the dataset in place, so this ties every output to the exact data that produced it.
 
@@ -94,12 +98,13 @@ Three GitHub Actions workflows keep the data current and the code honest.
 | Table | One row per | Key columns |
 |---|---|---|
 | `clean/missions` | survey trip | year, vessel_code, vessel_name |
-| `clean/sets` | tow | start_datetime_local, stratum, position, distance_nmi, depth_m, bottom_temp_c, gear, `qc_*` flags |
+| `clean/sets` | tow | start_datetime_local, stratum, position, distance_nmi, depth_m, bottom_temp_c, bottom_temp_merged_c and its source, gear, `qc_*` flags |
 | `clean/catch` | tow × species caught | weight_kg_std, count_std (per standard 1.75 nmi tow), `qc_weight_zero` |
 | `clean/species` | species code | scientific_name, common_name, is_taxon |
 | `clean/strata` | stratum | depth_min_fm, depth_max_fm, area_nmi2, area_km2, area_group |
+| `clean/ctd` | summer CTD profile | time_utc, position, depth_m and bottom_temp_c of the deepest sample |
 | `products/index` | region × year × species | mean and SE per tow (count, kg), trawlable totals, n_strata_sampled, area_coverage, complete, gears, vessels |
-| `products/bottom_temp` | region × year | mean_bottom_temp_c, se, n_sets_with_temp, complete |
+| `products/bottom_temp` | region × year | mean_bottom_temp_c, se, n_sets_with_temp, n_from_ctd, complete |
 
 Regions are `core` (strata 440–495), `4VW` (440–466) and `4X5Y` (470–495). These are the groupings DFO uses for stock assessments.
 
@@ -130,7 +135,7 @@ The formulas follow `stratify_simple()` and `calcYearSummary()` in DFO's [RVTran
 
 ## Validation
 
-Three independent checks, all reproducible:
+Four independent checks, all reproducible:
 
 1. **Hand-computed unit tests** (`tests/test_index.py`): every formula on a small example worked out in the comments.
 2. **Line-by-line port of DFO's R code** (`validation/rvtransmogrifier_port.py`): a deliberately naive loop shares no code with the package. On 824 region-year-species rows without missing values, the mean and SE agree to 1e-15. Totals agree to 1e-6, because DFO rounds the nmi²→km² factor.
@@ -144,6 +149,8 @@ Three independent checks, all reproducible:
 
 From 1982 onward, the median difference from the published values is 0.07%.
 
+4. **CTD bottom temperatures against the survey's own.** A tow is matched to its cast by the cast's id, which names the tow, or by position (within 2 km and 2 hours of the tow's end). Where a tow has both a survey and a CTD reading, they agree within 0.1 °C for 99% of tows (n = 4,178). The two matching methods confirm each other: 99.8% of position matches within a cruise point to the cast named for that very tow.
+
 ## Issues found in the public data
 
 Things you need to know before using these files, none of which are stated in the data dictionary:
@@ -155,7 +162,8 @@ Things you need to know before using these files, none of which are stated in th
   - `TOTNO = 0` means "not counted". It always comes with a weight, mostly for sponges, urchins and jellyfish.
   - `TOTWGT = 0` (8,861 rows, almost all before 2000) mostly means "too light to register". In the 1970s–80s, weights were recorded to the whole kilogram.
 - **Weighing and distance precision changed over time.** Weights went from 1 kg (1970s–80s) to 0.1 g (2000s). The spread of tow speed in the 1970s is six times today's, because distance was recorded to 0.1 nmi.
-- **Bottom temperature is missing** for 2021–2023 and almost all of 2005.
+- **Bottom temperature is missing** for 2021–2023 and almost all of 2005. The CTD cast made at each station is published separately, on CIOOS Atlantic, and fills 436 tows. Some casts are filed under another cruise's number (2005 under Teleost cruises, 2023 under the Cartier), but their position and timing tie them to the tow.
+- **Times are Atlantic Daylight Time (UTC−3), undocumented.** Each CTD cast is made at its tow's end position. Under UTC−3, the cast comes 15 minutes after the 30-minute tow ends; under UTC−4, it would come before the tow started.
 - **The length/age table (GSDET) is empty,** although the dataset description lists length frequencies.
 - **The stratum areas are not in the CSV package,** only in the GIS service. That service lists most tows twice and records missing temperatures as 0 °C.
 - **The dictionary gives salinity units as "pounds per square unit"** (it is PSU).
@@ -179,10 +187,9 @@ Done:
 - Example analysis (4X5Y haddock)
 - `fetch` command, monthly update check and automated data releases
 - Website with charts, tables and CSV downloads by species and region, backed by a static JSON API
+- Bottom temperature gaps filled from the same-station CTD casts (CIOOS Atlantic ERDDAP), validated against the survey's own readings
 
 Planned:
-
-- **Bottom temperature merged from CTD profiles** (CIOOS Atlantic ERDDAP), to fill the years the survey tables lack (2005, 2021–2023).
 - **WoRMS identifiers for species**, for interoperability with OBIS and FishGlob.
 
 ## Limitations
@@ -221,4 +228,7 @@ The code is released under the [MIT License](LICENSE).
 
 The survey data are not part of this repository and are not covered by that licence. They contain information licensed under the [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada).
 
-Source: Fisheries and Oceans Canada, *Maritimes Summer Research Vessel Survey*, [open.canada.ca dataset 1366e1f1-e2c8-4905-89ae-e10f1be0a164](https://open.canada.ca/data/en/dataset/1366e1f1-e2c8-4905-89ae-e10f1be0a164).
+Sources:
+
+- Fisheries and Oceans Canada, *Maritimes Summer Research Vessel Survey*, [open.canada.ca dataset 1366e1f1-e2c8-4905-89ae-e10f1be0a164](https://open.canada.ca/data/en/dataset/1366e1f1-e2c8-4905-89ae-e10f1be0a164).
+- Fisheries and Oceans Canada (Bedford Institute of Oceanography), *Maritimes Region Ecosystem Survey Rosette Vertical Profiles*, via [CIOOS Atlantic ERDDAP](https://erddap.cioosatlantic.ca/erddap/tabledap/bio_maritimes_region_ecosystem_survey_ctd.html).

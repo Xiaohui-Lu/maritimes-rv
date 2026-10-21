@@ -7,21 +7,24 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import clean, index, qc, raw
+from . import clean, index, qc, raw, temperature
 
-CLEAN_TABLES = ("missions", "sets", "catch", "species", "strata")
+CLEAN_TABLES = ("missions", "sets", "catch", "species", "strata", "ctd")
 
 
 def build_tables(raw_dir: Path) -> dict[str, pd.DataFrame]:
     source = raw.read_all(raw_dir)
     missions = clean.clean_missions(source["GSMISSIONS"])
     strata = clean.clean_strata(source["STRATA"])
+    ctd = clean.clean_ctd(source["CTD"])
+    sets = temperature.add_ctd_temperature(clean.clean_sets(source["GSINF"], missions), ctd)
     tables = {
         "missions": missions,
-        "sets": qc.flag_sets(clean.clean_sets(source["GSINF"], missions), strata),
+        "sets": qc.flag_sets(sets, strata),
         "catch": qc.flag_catch(clean.clean_catch(source["GSCAT"])),
         "species": clean.clean_species(source["GSSPECIES"]),
         "strata": strata,
+        "ctd": ctd,
     }
     if problems := qc.validate(tables):
         raise ValueError("integrity checks failed:\n  " + "\n  ".join(problems))

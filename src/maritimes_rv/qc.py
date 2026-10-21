@@ -24,12 +24,14 @@ PRIMARY_KEYS = {
     "catch": ["mission", "setno", "species_code"],
     "species": ["species_code"],
     "strata": ["stratum"],
+    "ctd": ["profile_id"],
 }
-FOREIGN_KEYS = [  # (child table, columns, parent table)
-    ("sets", ["mission"], "missions"),
-    ("sets", ["stratum"], "strata"),
-    ("catch", ["mission", "setno"], "sets"),
-    ("catch", ["species_code"], "species"),
+FOREIGN_KEYS = [  # (child table, child columns, parent table, parent columns); a missing child value refers to nothing
+    ("sets", ["mission"], "missions", ["mission"]),
+    ("sets", ["stratum"], "strata", ["stratum"]),
+    ("sets", ["ctd_profile_id"], "ctd", ["profile_id"]),
+    ("catch", ["mission", "setno"], "sets", ["mission", "setno"]),
+    ("catch", ["species_code"], "species", ["species_code"]),
 ]
 
 
@@ -89,15 +91,20 @@ def validate(tables: dict[str, pd.DataFrame]) -> list[str]:
     """Return a description of each integrity problem; an empty list means the tables are consistent."""
     problems = []
     for name, key in PRIMARY_KEYS.items():
+        if name not in tables:
+            continue
         table = tables[name]
         if table[key].isna().any().any():
             problems.append(f"{name}: missing values in primary key {key}")
         if (n := table.duplicated(key).sum()):
             problems.append(f"{name}: {n} duplicate primary keys {key}")
 
-    for child, columns, parent in FOREIGN_KEYS:
-        known = pd.MultiIndex.from_frame(tables[parent][columns])
-        orphans = ~pd.MultiIndex.from_frame(tables[child][columns]).isin(known)
+    for child, columns, parent, parent_columns in FOREIGN_KEYS:
+        if child not in tables or parent not in tables or columns[0] not in tables[child]:
+            continue
+        known = pd.MultiIndex.from_frame(tables[parent][parent_columns].set_axis(columns, axis=1))
+        references = tables[child][columns].dropna()
+        orphans = ~pd.MultiIndex.from_frame(references).isin(known)
         if orphans.any():
             problems.append(f"{child}{columns}: {orphans.sum()} rows with no match in {parent}")
 

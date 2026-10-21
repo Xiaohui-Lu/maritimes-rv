@@ -23,8 +23,11 @@ def make_sets(rows):
     frame.insert(0, "mission", "M")
     frame["gear"] = "Western IIA trawl"
     frame["qc_comparative_fishing"] = False
-    return frame.astype({"setno": "Int16", "year": "Int16", "stratum": "string", "vessel_code": "string",
-                         "bottom_temp_c": "Float64", "gear": "string", "qc_comparative_fishing": "boolean"})
+    frame = frame.astype({"setno": "Int16", "year": "Int16", "stratum": "string", "vessel_code": "string",
+                          "bottom_temp_c": "Float64", "gear": "string", "qc_comparative_fishing": "boolean"})
+    frame["bottom_temp_merged_c"] = frame["bottom_temp_c"]
+    frame["bottom_temp_source"] = pd.Series(pd.NA, index=frame.index, dtype="string").mask(frame["bottom_temp_c"].notna(), "survey")
+    return frame
 
 
 def make_catch(rows):
@@ -150,3 +153,11 @@ def test_bottom_temperature_uses_only_tows_with_a_reading():
     none = temp.loc[("core", 2001)]  # no readings that year
     assert none["n_sets_with_temp"] == 0 and not none["complete"]
     assert pd.isna(none["mean_bottom_temp_c"])
+
+
+def test_bottom_temperature_counts_readings_filled_from_ctd():
+    sets = SETS.copy()
+    sets.loc[sets["setno"] == 3, ["bottom_temp_merged_c", "bottom_temp_source"]] = [6.0, "ctd"]  # 440: 5, 7, 6
+    row = index.build_bottom_temperature(sets, STRATA).set_index(["region", "year"]).loc[("core", 2000)]
+    assert row["n_sets_with_temp"] == 5 and row["n_from_ctd"] == 1
+    assert row["mean_bottom_temp_c"] == pytest.approx((100 * 6 + 300 * 9) / 400)

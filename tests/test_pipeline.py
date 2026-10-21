@@ -19,9 +19,19 @@ def built(tmp_path_factory):
 
 def test_row_counts_match_step_1_profile(built):
     tables, _ = built
-    assert {name: len(t) for name, t in tables.items()} == {
-        "missions": 94, "sets": 9437, "catch": 139465, "species": 649, "strata": 72,
-    }
+    counts = {name: len(t) for name, t in tables.items() if name != "ctd"}  # CTD holdings may grow over time
+    assert counts == {"missions": 94, "sets": 9437, "catch": 139465, "species": 649, "strata": 72}
+
+
+@pytest.mark.skipif(not (RAW / "ctd").exists(), reason="CTD profiles not downloaded")
+def test_same_station_ctd_casts_fill_bottom_temperature_gaps(built):
+    sets = built[0]["sets"]
+    both = sets[sets["bottom_temp_c"].notna() & sets["ctd_bottom_temp_c"].notna()]
+    agreement = ((both["ctd_bottom_temp_c"] - both["bottom_temp_c"]).abs() <= 0.1).mean()
+    assert len(both) > 3000 and agreement > 0.98
+    filled = sets[sets["bottom_temp_source"] == "ctd"].groupby("year").size()
+    assert all(filled.get(year, 0) > 100 for year in (2005, 2022, 2023))
+    assert not sets["ctd_profile_id"].dropna().duplicated().any()  # one cast per tow at most
 
 
 def test_zero_rules_from_data_model(built):

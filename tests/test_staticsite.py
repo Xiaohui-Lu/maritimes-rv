@@ -28,6 +28,13 @@ def test_columns_become_json_ready_lists():
     assert staticsite.column(pd.Series([float("nan")])) == [None]
 
 
+def test_fields_missing_from_an_older_release_are_left_out():
+    table = pd.DataFrame({"region": ["core", "core"], "year": [2001, 2000], "n_sets_with_temp": [5, 4]})
+    assert staticsite.by_region(table, ["n_sets_with_temp", "n_from_ctd"]) == {
+        "core": {"year": [2000, 2001], "n_sets_with_temp": [4, 5]}
+    }
+
+
 def test_page_loads_nothing_from_other_sites():
     html = resources.files("maritimes_rv").joinpath("site_assets/index.html").read_text(encoding="utf-8")
     external = re.findall(r'<(?:script|link)[^>]+(?:src|href)="(https?:[^"]+)"', html)
@@ -68,4 +75,6 @@ def test_site_from_real_data(tmp_path):
     assert set(meta["fields"]["index"]) >= {"year", "mean_weight_kg_per_tow", "complete"}
 
     temp = strict_json(api / "bottom_temp.json")["regions"]["4X5Y"]
-    assert temp["n_sets_with_temp"][temp["year"].index(2005)] == 0
+    assert temp["n_sets_with_temp"][temp["year"].index(2021)] == 0
+    if (RAW / "ctd").exists():  # the survey has no 2005 readings in 4X5Y; same-station CTD casts fill them
+        assert temp["n_from_ctd"][temp["year"].index(2005)] > 0

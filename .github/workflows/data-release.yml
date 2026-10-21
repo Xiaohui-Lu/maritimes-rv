@@ -60,11 +60,18 @@ jobs:
           uv run maritimes-rv index
           uv run pytest -q
 
+      # Named after the date; a second release on the same day gets a suffix (2026-10-21.2)
       - name: Publish release
         if: steps.compare.outputs.changed == 'true'
         run: |
-          date=$(date -u +%Y-%m-%d)
-          uv run maritimes-rv release --tag "$date" --out dist
-          gh release create "data-$date" \
-            dist/maritimes-rv-data-"$date".zip dist/sources.json dist/SHA256SUMS \
-            --title "Survey data $date" --notes-file dist/release_notes.md
+          base=$(date -u +%Y-%m-%d)
+          version=$base
+          n=2
+          while gh release view "data-$version" > /dev/null 2>&1; do
+            version="$base.$n"
+            n=$((n + 1))
+          done
+          uv run maritimes-rv release --tag "$version" --out dist
+          gh release create "data-$version" \
+            dist/maritimes-rv-data-"$version".zip dist/sources.json dist/SHA256SUMS \
+            --title "Survey data $version" --notes-file dist/release_notes.md

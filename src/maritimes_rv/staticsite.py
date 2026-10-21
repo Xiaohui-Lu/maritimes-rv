@@ -29,7 +29,7 @@ INDEX_FIELDS = [
     "mean_count_per_tow", "se_count_per_tow", "mean_weight_kg_per_tow", "se_weight_kg_per_tow",
     "total_count", "se_total_count", "total_weight_t", "se_total_weight_t",
 ]
-TEMP_FIELDS = ["n_sets_with_temp", "n_strata_sampled", "n_strata_total", "area_coverage", "complete",
+TEMP_FIELDS = ["n_sets_with_temp", "n_from_ctd", "n_strata_sampled", "n_strata_total", "area_coverage", "complete",
                "mean_bottom_temp_c", "se_bottom_temp_c"]
 
 
@@ -45,8 +45,10 @@ def column(values: pd.Series) -> list:
 
 
 def by_region(table: pd.DataFrame, fields: list[str]) -> dict:
+    # Fields a release built by an older version lacks are left out, so the site still builds from it
+    present = [f for f in fields if f in table.columns]
     return {
-        str(region): {"year": column(rows["year"]), **{f: column(rows[f]) for f in fields}}
+        str(region): {"year": column(rows["year"]), **{f: column(rows[f]) for f in present}}
         for region, rows in table.sort_values("year").groupby("region", sort=True)
     }
 

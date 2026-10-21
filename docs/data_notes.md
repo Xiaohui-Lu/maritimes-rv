@@ -15,6 +15,7 @@ What the public release of the DFO Maritimes summer RV survey contains, and the 
 | `SUMMER_csv/DataDictionary_202008.xlsx` | archive | Data dictionary by table; more complete than the separate one |
 | `DataDictionary_Summer.csv` | separate open.canada.ca resource | Describes only the two GIS tables |
 | `rest_strata_layer1.json` | ESRI REST layer 1 (section 5) | Strata table: 72 strata with areas |
+| `ctd/<year>.csv` | CIOOS Atlantic ERDDAP (section 3.14) | Deepest sample of each downward CTD profile, one file per summer from 1996 |
 
 The files in the archive are dated 2023-11-08 and the data run to 2023.
 
@@ -143,6 +144,8 @@ In 1985, six 4X5Y strata have no readings, so coverage there is 75%.
 
 The REST service has no temperatures for these years either, and it records missing values as 0 (section 3.10).
 
+Most of these gaps can be filled from the CTD cast made at each station, which is published separately (section 3.14). That fills 2005, 2022 and most of 2023; 2021 stays empty.
+
 ### 3.10 REST layer 0 (tows) is not usable as is
 
 - **Duplicated tows.** It has 18,871 rows, about twice the CSV: most tows appear twice, as two versions of the same tow. Between the versions, SDT sometimes differs by a day (probably a time-zone conversion) and DEP is rounded differently.
@@ -179,6 +182,38 @@ Found by comparing the haddock index with a published DFO table.
 - **Why it matters.** The public data has no tow-type (TYPE) column, so these tows look like ordinary survey tows. Including them in a stratified mean double-counts those stations: 2005 4X5Y haddock biomass comes out 40% too high.
 - **Handling.** They are flagged by the `qc_comparative_fishing` rule and left out of the index (`data_model.md` sections 3.2 and 4.6).
 
+### 3.14 The CTD cast at each station, and the survey's time zone
+
+DFO's Bedford Institute of Oceanography publishes the survey's CTD profiles separately, as "Maritimes Region Ecosystem Survey Rosette Vertical Profiles" on CIOOS Atlantic ERDDAP (`bio_maritimes_region_ecosystem_survey_ctd`, 1996 onward, Open Government Licence – Canada). `maritimes-rv fetch` downloads the deepest sample of each downward profile for every summer: 6,226 casts for 1996–2023.
+
+**Where and when the cast is made.** Matched to the tows (below), a cast lies a median of 0.8 km from the tow's **end** position (3.8 km from its start) and about 15 minutes after the tow ends.
+
+**The survey's local time is Atlantic Daylight Time (UTC−3).** The data dictionary does not say. Cast time (UTC) minus tow start (local) is a median of 3.74 hours:
+
+- Under UTC−3, the cast follows the 30-minute tow by about 15 minutes, at the tow's end position. This is consistent.
+- Under UTC−4 (Atlantic Standard Time), it would come 16 minutes before the tow started, while the ship was already at the end position. This is impossible.
+
+**Matching a tow to its cast.**
+
+1. **By id.** Profile ids name the cruise and set, e.g. `CTD_NED2016016_249_…`. A cast named for the tow is used if it is within 10 km and 12 hours of the tow's end; a few ids are mislabelled, one by 317 km.
+2. **By position.** Otherwise the nearest cast within 2 km and 2 hours of the tow's end is used, unless that cast is named for another tow of the same cruise.
+
+The id and the position agree independently: 99.8% of position matches within a cruise point to the cast named for that very set.
+
+**Cruise numbers do not always match.** Some casts are filed under a different cruise from the trawl mission:
+
+- 1997–2000: numeric cruise numbers, e.g. `98027` for NED1998027.
+- 2005: casts for NED2005027 and NED2005034 tows are filed under the Teleost cruises TEL2005605 and TEL2005633.
+- 2023: casts for the TEL2023010 tows are filed under CAR2023011 (Capt. Jacques Cartier).
+
+Their position and timing fit the same-station pattern exactly, so position matching finds them.
+
+**Validation.** Where a tow has both a survey bottom temperature and a matched cast, the two agree within 0.1 °C for 99.1% of id matches (n = 3,490) and 99.4% of position matches (n = 688). The survey's value evidently comes from this cast.
+
+**Disagreements.** Six tows differ by more than 0.5 °C (up to 3.97 °C) even though the cast is their own; one of the two values must be wrong. They are flagged `qc_ctd_temp_mismatch`.
+
+**Gaps filled.** The CTD reading fills 436 tows that have no survey bottom temperature: 145 in 2005, 125 in 2022, 154 in 2023 and 12 in other years. 2021 cannot be filled: the open trawl data has only two tows that year.
+
 ## 4. Minor issues
 
 | Issue | Where | Handling |
@@ -196,9 +231,11 @@ Found by comparing the haddock index with a published DFO table.
 | The dictionary gives BOTT_SAL units as "pounds per square unit"; they are PSU | both dictionaries | noted |
 | The dataset title is misspelled "Martimes" | open.canada.ca | noted |
 
-## 5. Reproducing the REST query
+## 5. Reproducing the REST and ERDDAP queries
 
-`maritimes-rv fetch` runs this query (and downloads the CSV package) automatically. Service root:
+`maritimes-rv fetch` runs these queries (and downloads the CSV package) automatically. The CTD query for one summer is built by `fetch.ctd_url()`: the variables listed in `fetch.CTD_VARIABLES`, restricted to 15 May–15 September and `profile_direction="downward"`, with `orderByMax("id,depth")` so the server returns only the deepest sample of each profile.
+
+REST service root:
 `https://egisp.dfo-mpo.gc.ca/arcgis/rest/services/open_data_donnees_ouvertes/maritimes_summer_research_vessel_survey_en/MapServer`
 
 - Layer 0: Maritimes Summer RV Survey (tow points)

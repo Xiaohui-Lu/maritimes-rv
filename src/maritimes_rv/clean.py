@@ -94,6 +94,25 @@ def clean_species(raw: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def clean_ctd(raw: pd.DataFrame) -> pd.DataFrame:
+    """Deepest sample of each downward CTD profile: the reading closest to the bottom."""
+    # ITS-90 temperature where present, else the generic channel, else IPTS-68 (the scales differ by < 0.01 C)
+    temperature = raw["TEMPS901"].fillna(raw["TEMPPR01"]).fillna(raw["TEMPS601"])
+    out = pd.DataFrame({
+        "profile_id": raw["id"].astype("string"),
+        "cruise": raw["cruise_number"].astype("string"),
+        "station": raw["station"].astype("string"),
+        "time_utc": pd.to_datetime(raw["time"], utc=True).dt.tz_localize(None),
+        "lat": raw["latitude"].astype("Float64"),
+        "lon": raw["longitude"].astype("Float64"),
+        "depth_m": raw["depth"].astype("Float64"),
+        "bottom_temp_c": temperature.astype("Float64"),
+        "bottom_salinity_psu": raw["PSALST01"].fillna(raw["PSLTZZ01"]).astype("Float64"),
+        "temp_flag": raw["QTEMP_01"].astype("Int8"),
+    })
+    return out.sort_values("profile_id", ignore_index=True)
+
+
 def clean_strata(raw: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame({
         "stratum": raw["STRAT"].astype("string"),

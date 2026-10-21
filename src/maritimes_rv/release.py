@@ -17,7 +17,7 @@ import pandas as pd
 
 from . import fetch
 
-CLEAN = ("missions", "sets", "catch", "species", "strata")
+CLEAN = ("missions", "sets", "catch", "species", "strata", "ctd")
 PRODUCTS = ("index", "bottom_temp")
 
 # Every column of every released table; data_dictionary() fails if this drifts from the tables.
@@ -49,6 +49,13 @@ COLUMNS = {
         "bottom_salinity_psu": "Bottom salinity, practical salinity units",
         "gear": "Trawl used",
         "vessel_code": "One-letter vessel code (copied from missions)",
+        "ctd_profile_id": "CTD cast made at this station, see ctd",
+        "ctd_match": "How the cast was matched: id (names this tow) or position (within 2 km and 2 hours of the tow's end)",
+        "ctd_distance_km": "Distance from the tow's end position to that CTD cast, km",
+        "ctd_bottom_temp_c": "Bottom temperature from that CTD cast, degrees C",
+        "bottom_temp_merged_c": "bottom_temp_c where recorded, else ctd_bottom_temp_c",
+        "bottom_temp_source": "Source of bottom_temp_merged_c: survey or ctd",
+        "qc_ctd_temp_mismatch": "Survey and same-station CTD bottom temperatures differ by more than 0.5 C",
         "qc_speed_inconsistent": "Recorded speed differs from distance / duration by more than 1 knot",
         "qc_speed_implausible": "Distance / duration is outside 2-5 knots",
         "qc_depth_outside_stratum": "Depth is more than 10 fathoms outside the stratum's depth band",
@@ -77,6 +84,18 @@ COLUMNS = {
         "is_core": "True for the core strata 440-495",
         "area_group": "4VW (strata 440-466) or 4X5Y (470-495); empty outside the core strata",
     },
+    "ctd": {
+        "profile_id": "CTD profile identifier (CIOOS Atlantic ERDDAP id)",
+        "cruise": "Cruise number the profile is filed under",
+        "station": "Station name",
+        "time_utc": "Cast time, UTC",
+        "lat": "Latitude, decimal degrees",
+        "lon": "Longitude, decimal degrees",
+        "depth_m": "Depth of the deepest sample, metres",
+        "bottom_temp_c": "Temperature at the deepest sample, degrees C",
+        "bottom_salinity_psu": "Salinity at the deepest sample, practical salinity units",
+        "temp_flag": "BIO quality flag of the temperature (1 good; 2, 3, 4 and 9 are not used for matching)",
+    },
     "index": {
         "region": "core (strata 440-495), 4VW (440-466) or 4X5Y (470-495)",
         "year": "Survey year",
@@ -103,7 +122,8 @@ COLUMNS = {
     "bottom_temp": {
         "region": "core (strata 440-495), 4VW (440-466) or 4X5Y (470-495)",
         "year": "Survey year",
-        "n_sets_with_temp": "Tows with a bottom temperature reading",
+        "n_sets_with_temp": "Tows with a bottom temperature reading (survey or same-station CTD)",
+        "n_from_ctd": "Of those, readings filled in from the same-station CTD cast",
         "n_strata_sampled": "Strata with at least one reading",
         "n_strata_total": "Strata in the region",
         "area_coverage": "Area of the strata with readings / area of the region",
@@ -115,7 +135,8 @@ COLUMNS = {
 
 ROW_LABELS = {
     "missions": "survey trip", "sets": "tow", "catch": "tow and species caught", "species": "species code",
-    "strata": "stratum", "index": "region, year and species", "bottom_temp": "region and year",
+    "strata": "stratum", "ctd": "summer CTD profile (deepest sample)",
+    "index": "region, year and species", "bottom_temp": "region and year",
 }
 
 README = """\
@@ -147,7 +168,9 @@ and `sources.json` fingerprints the source data this release was built from.
 - `count_std` is missing where the catch was weighed but not counted (mostly invertebrates).
 - In `index` and `bottom_temp`, compare only rows with `complete = true`. Incomplete survey coverage:
 {incomplete_index}
-- Bottom temperature, years without full coverage:
+- Bottom temperature is the survey's own reading where it has one, else the reading of the CTD cast made
+  at the same station (within 2 km and 2 hours of the tow's end; `bottom_temp_source` says which).
+  Years without full coverage even so:
 {incomplete_temp}
 - Tows flagged `qc_comparative_fishing` repeat stations already fished and are excluded from `index`.
 - Vessel conversion factors are {conversion}. Catchability differs across vessels and trawls, so long
@@ -159,8 +182,10 @@ and `sources.json` fingerprints the source data this release was built from.
 Contains information licensed under the Open Government Licence - Canada
 (https://open.canada.ca/en/open-government-licence-canada).
 
-Source: Fisheries and Oceans Canada, Maritimes Summer Research Vessel Survey,
-https://open.canada.ca/data/en/dataset/1366e1f1-e2c8-4905-89ae-e10f1be0a164
+Sources: Fisheries and Oceans Canada, Maritimes Summer Research Vessel Survey,
+https://open.canada.ca/data/en/dataset/1366e1f1-e2c8-4905-89ae-e10f1be0a164 ; and Fisheries and Oceans
+Canada (Bedford Institute of Oceanography), Maritimes Region Ecosystem Survey Rosette Vertical Profiles,
+via CIOOS Atlantic: https://erddap.cioosatlantic.ca/erddap/tabledap/bio_maritimes_region_ecosystem_survey_ctd.html
 
 This is an independent product; it is not produced or endorsed by Fisheries and Oceans Canada.
 """

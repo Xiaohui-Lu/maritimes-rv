@@ -326,21 +326,25 @@ function render() {
   );
 
   const temp = state.temp.regions[state.region];
+  const fromCtd = temp.n_from_ctd || temp.year.map(() => 0); // absent in releases built before CTD matching
   $("temp-subtitle").textContent =
-    `${REGION_LABELS[state.region]}. Stratified mean of tows with a reading, with 95% interval. ` +
-    "Grey points: readings from less than 90% of the area.";
+    `${REGION_LABELS[state.region]}. Stratified mean with 95% interval. Each tow's reading is the survey's own, ` +
+    "or where it has none, the CTD cast made at the same station. Grey points: readings from less than 90% of the area.";
   lineChart($("temp-chart"), {
     years: temp.year, mean: temp.mean_bottom_temp_c, se: temp.se_bottom_temp_c, complete: temp.complete, domain,
     fromZero: false, gearChange: false, unit: "°C",
     ariaLabel: `Summer bottom temperature, ${REGION_LABELS[state.region]}`,
     empty: "No bottom temperature readings for this region.",
-    details: (i) => [`${temp.n_sets_with_temp[i]} tows with a reading · ${Math.round(temp.area_coverage[i] * 100)}% of area`],
+    details: (i) => [
+      `${temp.n_sets_with_temp[i]} tows with a reading · ${Math.round(temp.area_coverage[i] * 100)}% of area`,
+      ...(fromCtd[i] ? [`${fromCtd[i]} of them from same-station CTD casts`] : []),
+    ],
   });
   renderTable(
     $("temp-table"),
-    ["Year", "Tows with reading", "Area covered", "Mean (°C)", "SE"],
+    ["Year", "Tows with reading", "From CTD", "Area covered", "Mean (°C)", "SE"],
     temp.year.map((year, i) => [
-      year, temp.n_sets_with_temp[i], `${Math.round(temp.area_coverage[i] * 100)}%`,
+      year, temp.n_sets_with_temp[i], fromCtd[i], `${Math.round(temp.area_coverage[i] * 100)}%`,
       formatNumber(temp.mean_bottom_temp_c[i]), formatNumber(temp.se_bottom_temp_c[i]),
     ]),
     temp.complete.map((c) => !c),

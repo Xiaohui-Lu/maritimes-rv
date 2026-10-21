@@ -5,7 +5,7 @@ Haddock in NAFO divisions 4X5Y (western Scotian Shelf and Bay of Fundy, survey s
 1. Can a pipeline built only from the public data reproduce DFO's published survey index?
 2. What do the survey indices show for this stock over 54 years?
 
-Every number below is printed by [`haddock_4x5y.py`](haddock_4x5y.py), and the table behind the figures is [`figures/haddock_4x5y.csv`](figures/haddock_4x5y.csv).
+Every number below is printed by [`haddock_4x5y.py`](haddock_4x5y.py), and the table behind the figures is [`figures/haddock_4x5y.csv`](figures/haddock_4x5y.csv). Numbers can shift slightly as DFO updates its data; this text reflects the data of October 2026.
 
 ```bash
 uv run maritimes-rv clean
@@ -62,16 +62,18 @@ The indices are produced without conversion by default. `maritimes-rv index --co
 
 ![Bottom temperature](figures/bottom_temperature_4x5y.png)
 
-Over the 49 years with full coverage between 1970 and 2020:
+Each tow's reading is the survey's own where it has one. The survey tables have no bottom temperatures for 2021–2023 and almost none for 2005. Where a tow has no reading, it takes the reading of the CTD cast made at the same station. These casts come from DFO's survey CTD profiles on CIOOS Atlantic, matched to the tow by id, or by a cast within 2 km and 2 hours of the tow's end. Where both sources exist, they agree within 0.1 °C for 99% of tows. This fills 2005, 2022 and most of 2023.
 
-- The mean summer bottom temperature in 4X5Y was **7.36 °C for 1970–1999 and 8.73 °C for 2010–2020**, a rise of about 1.4 °C.
-- The linear trend over the whole period is +0.26 °C per decade.
-- The warmest year was 2012, at 9.61 °C. That coincides with the widely reported 2012 marine heatwave in the Northwest Atlantic.
+Over the 51 years with full coverage (1970–2022):
 
-The gaps come from the data, not from this pipeline:
+- The mean summer bottom temperature in 4X5Y was **7.36 °C for 1970–1999 and 8.80 °C for 2010–2022**, a rise of about 1.4 °C.
+- The linear trend over the whole period is +0.28 °C per decade.
+- The warmest years are 2022 (9.63 °C, all from CTD casts) and 2012 (9.61 °C). Their intervals overlap, so they are effectively tied. 2012 coincides with the widely reported 2012 marine heatwave in the Northwest Atlantic.
 
-- **2005:** no readings in 4X5Y. One of the two Needler missions recorded none.
-- **2021–2023:** no bottom temperatures in the open data at all.
+The remaining gaps:
+
+- **2021:** no readings. The open trawl data has only two tows that year, and neither has a matching cast.
+- **2023:** readings cover 88% of the area, so the year is marked incomplete.
 - **1985:** readings cover only 75% of the area.
 
 This example does not test whether warming is related to the change in haddock size.

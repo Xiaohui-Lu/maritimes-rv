@@ -192,23 +192,31 @@ def build_index(sets, catch, species, strata, species_codes=None, convert=False)
 
 
 def build_bottom_temperature(sets: pd.DataFrame, strata: pd.DataFrame) -> pd.DataFrame:
-    """Stratified mean bottom temperature per region x year, from tows that recorded one."""
+    """Stratified mean bottom temperature per region x year, from tows with a reading.
+
+    A tow's reading is the survey's own where it has one, else the same-station CTD cast's
+    (temperature.py); n_from_ctd says how many came from CTD casts.
+    """
     sets = survey_tows(sets)
-    measured = sets[sets["bottom_temp_c"].notna()]
-    stats = stratum_stats(measured, {"temp": "bottom_temp_c"})
+    measured = sets[sets["bottom_temp_merged_c"].notna()]
+    stats = stratum_stats(measured, {"temp": "bottom_temp_merged_c"})
     area = strata.set_index("stratum")["area_nmi2"]
     years = sorted(sets["year"].unique())
 
     frames = []
     for region, members in region_strata(strata).items():
         result = combine_strata(stats[stats["stratum"].isin(members)], area, "temp")
-        frames.append(result[["year", "mean_temp", "se_temp"]].assign(region=region))
-    # Coverage counts only tows with a temperature, so 2021-2023 (none recorded) come out incomplete.
+        in_region = measured[measured["stratum"].isin(members)]
+        from_ctd = (in_region["bottom_temp_source"] == "ctd").groupby(in_region["year"]).sum().rename("n_from_ctd")
+        frames.append(result[["year", "mean_temp", "se_temp"]].merge(from_ctd.reset_index(), on="year", how="left")
+                      .assign(region=region))
+    # Coverage counts only tows with a reading, so years without readings come out incomplete.
     table = coverage(measured, strata, years).merge(pd.concat(frames), on=["region", "year"], how="left")
     return pd.DataFrame({
         "region": table["region"].astype("string"),
         "year": table["year"],
         "n_sets_with_temp": table["n_sets"].astype("Int16"),
+        "n_from_ctd": table["n_from_ctd"].fillna(0).astype("Int16"),
         "n_strata_sampled": table["n_strata_sampled"].astype("Int16"),
         "n_strata_total": table["n_strata_total"].astype("Int16"),
         "area_coverage": table["area_coverage"].astype("Float64"),

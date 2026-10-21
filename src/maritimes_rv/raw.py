@@ -7,6 +7,9 @@ import pandas as pd
 CSV_DIR = "SUMMER_csv"
 CSV_TABLES = ("GSMISSIONS", "GSINF", "GSCAT", "GSSPECIES")
 STRATA_FILE = "rest_strata_layer1.json"
+CTD_DIR = "ctd"
+CTD_COLUMNS = ["id", "cruise_number", "station", "time", "latitude", "longitude", "depth",
+               "TEMPS901", "TEMPS601", "TEMPPR01", "QTEMP_01", "PSALST01", "PSLTZZ01"]
 
 
 def csv_path(raw_dir: Path, table: str) -> Path:
@@ -35,11 +38,29 @@ def read_strata(raw_dir: Path) -> pd.DataFrame:
     return pd.DataFrame([feature["attributes"] for feature in payload["features"]])
 
 
+def ctd_files(raw_dir: Path) -> list[Path]:
+    return sorted((raw_dir / CTD_DIR).glob("*.csv"))
+
+
+def read_ctd_file(path: Path) -> pd.DataFrame:
+    # ERDDAP CSV: the second line holds the units, not data. Text columns stay text (cruise numbers
+    # such as 96249 are identifiers, not numbers).
+    return pd.read_csv(path, skiprows=[1], dtype={"id": str, "cruise_number": str, "station": str})
+
+
+def read_ctd(raw_dir: Path) -> pd.DataFrame:
+    """Deepest sample of each summer CTD profile; empty if the CTD files were not downloaded."""
+    files = [read_ctd_file(p) for p in ctd_files(raw_dir)]
+    files = [f for f in files if not f.empty]
+    return pd.concat(files, ignore_index=True) if files else pd.DataFrame(columns=CTD_COLUMNS)
+
+
 def read_all(raw_dir: Path) -> dict[str, pd.DataFrame]:
     tables = {table: read_csv_table(raw_dir, table) for table in CSV_TABLES}
     tables["STRATA"] = read_strata(raw_dir)
+    tables["CTD"] = read_ctd(raw_dir)
     return tables
 
 
 def source_files(raw_dir: Path) -> list[Path]:
-    return [csv_path(raw_dir, table) for table in CSV_TABLES] + [raw_dir / STRATA_FILE]
+    return [csv_path(raw_dir, table) for table in CSV_TABLES] + [raw_dir / STRATA_FILE] + ctd_files(raw_dir)

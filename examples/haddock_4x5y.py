@@ -29,6 +29,8 @@ GRID, BASELINE = "#e1e0d9", "#c3c2b7"
 BLUE, ORANGE = "#2a78d6", "#eb6834"
 SOURCE = ("Source: DFO Maritimes Summer Research Vessel Survey open data, Open Government Licence - Canada. "
           "Computed with maritimes-rv.")
+SOURCE_WITH_CTD = ("Sources: DFO Maritimes summer RV survey open data; DFO BIO CTD profiles via CIOOS Atlantic. "
+                   "Open Government Licence - Canada.")
 
 
 def style() -> None:
@@ -53,6 +55,12 @@ def series_with_band(ax, years, mean, se, complete, color=BLUE) -> None:
     shown = mean.where(complete)
     ax.fill_between(years, (shown - 1.96 * se).clip(lower=0), shown + 1.96 * se, color=color, alpha=0.10, lw=0)
     ax.plot(years, shown, color=color)
+    # A complete year between two gaps has no line segment, so it needs a marker to be visible at all
+    isolated = shown.notna() & shown.shift(1).isna() & shown.shift(-1).isna()
+    ax.plot(years[isolated.to_numpy()], shown[isolated], "o", ms=5, color=color, mec=SURFACE, mew=1.5, zorder=3)
+    if isolated.any():
+        lower, upper = (shown - 1.96 * se).clip(lower=0)[isolated], (shown + 1.96 * se)[isolated]
+        ax.vlines(years[isolated.to_numpy()], lower, upper, color=color, alpha=0.35, lw=2)
     partial = ~complete & mean.notna()
     ax.plot(years[partial], mean[partial], "o", ms=6, color=MUTED, mec=SURFACE, mew=1.5, zorder=3)
 
@@ -65,12 +73,12 @@ def gear_change(ax, label: bool) -> None:
         ax.text(GEAR_CHANGE + 0.6, top, "Western IIA trawl", ha="left", va="top", color=MUTED, fontsize=8)
 
 
-def header(fig, title: str, subtitle: str) -> None:
+def header(fig, title: str, subtitle: str, source: str = SOURCE) -> None:
     # Offsets in inches, so the header keeps its spacing whatever the figure height
     height = fig.get_figheight()
     fig.text(0.02, 1 - 0.14 / height, title, ha="left", va="top", fontsize=12, fontweight="semibold", color=INK)
     fig.text(0.02, 1 - 0.42 / height, subtitle, ha="left", va="top", fontsize=9, color=INK_2)
-    fig.text(0.02, 0.08 / height, SOURCE, ha="left", va="bottom", fontsize=7, color=MUTED)
+    fig.text(0.02, 0.08 / height, source, ha="left", va="bottom", fontsize=7, color=MUTED)
 
 
 def load():
@@ -154,10 +162,11 @@ def figure_bottom_temperature(bt: pd.DataFrame) -> None:
     ax.set_xlim(1969, 2024)
     no_readings = [int(y) for y in bt.index[bt["n_sets_with_temp"] == 0]]
     partial = [int(y) for y in bt.index[~bt["complete"].astype(bool) & (bt["n_sets_with_temp"] > 0)]]
+    from_ctd = [int(y) for y in bt.index[bt["n_from_ctd"] > bt["n_sets_with_temp"] / 2]]
     header(fig, "Bottom temperature in 4X5Y during the summer survey, 1970-2023",
-           "Stratified mean of tows with a reading, with 95% interval (±1.96 SE).\n"
-           f"No readings in the open data: {', '.join(map(str, no_readings))}. "
-           f"Grey point: readings from under 90% of the area ({', '.join(map(str, partial))}).")
+           "Stratified mean with 95% interval (±1.96 SE). Survey readings; where missing, the CTD cast at the same\n"
+           f"station (mostly CTD in {', '.join(map(str, from_ctd))}). No readings: {', '.join(map(str, no_readings))}. "
+           f"Grey points: under 90% of the area ({', '.join(map(str, partial))}).", source=SOURCE_WITH_CTD)
     fig.savefig(OUT / "bottom_temperature_4x5y.png", dpi=200)
     plt.close(fig)
 
@@ -202,6 +211,7 @@ def main() -> None:
         "kg_per_fish": h["mean_weight_kg_per_tow"] / h["mean_count_per_tow"],
         "total_t_x1.2_to_1981": validation["ours"], "published_t": validation["published"],
         "bottom_temp_c": bt["mean_bottom_temp_c"], "se_bottom_temp_c": bt["se_bottom_temp_c"],
+        "bottom_temp_tows_from_ctd": bt["n_from_ctd"],
     }).rename_axis("year")
     table.to_csv(OUT / "haddock_4x5y.csv", float_format="%.4g")
 
@@ -228,7 +238,7 @@ def main() -> None:
     temp = bt.loc[bt["complete"].astype(bool), "mean_bottom_temp_c"].astype(float)
     slope = np.polyfit(temp.index.to_numpy(float), temp.to_numpy(), 1)[0] * 10
     print(f"bottom temp: {temp.index.min()}-{temp.index.max()}, {len(temp)} complete years; "
-          f"1970-1999 mean {temp.loc[:1999].mean():.2f}, 2010-2020 mean {temp.loc[2010:].mean():.2f}, "
+          f"1970-1999 mean {temp.loc[:1999].mean():.2f}, 2010-{temp.index.max()} mean {temp.loc[2010:].mean():.2f}, "
           f"warmest {temp.idxmax()} ({temp.max():.2f}), linear trend {slope:+.2f} C/decade")
     print(f"wrote {sorted(p.name for p in OUT.iterdir())}")
 
