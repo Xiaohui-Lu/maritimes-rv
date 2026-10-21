@@ -1,0 +1,24 @@
+[project]
+name = "maritimes-rv"
+version = "0.1.0"
+description = "Clean tables and stratified indices from the DFO Maritimes summer research vessel survey open data"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.0",
+    "pyarrow>=18",
+]
+
+[project.scripts]
+maritimes-rv = "maritimes_rv.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

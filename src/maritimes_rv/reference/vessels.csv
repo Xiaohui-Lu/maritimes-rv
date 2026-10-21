@@ -1,0 +1,6 @@
+vessel_code,mission_prefix,vessel_name,confidence,source
+A,ATC,CCGS A.T. Cameron,inferred,MISSION prefix; vessel compared in Fanning (1985) CAFSAC Res. Doc. 85/3
+H,HAM,Lady Hammond,inferred,MISSION prefix; vessel compared in Fanning (1985) CAFSAC Res. Doc. 85/3
+N,NED,CCGS Alfred Needler,inferred,MISSION prefix; DFO Science Response 2025/017
+S,TEL,CCGS Teleost,inferred,MISSION prefix; DFO Science Response 2025/017
+T,TEM,CCGS Wilfred Templeman,inferred,MISSION prefix only

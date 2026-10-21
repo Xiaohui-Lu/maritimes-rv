@@ -1,0 +1,8 @@
+# Raw downloads and generated tables are rebuilt from the official source, not versioned
+data/raw/
+data/clean/
+
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
