@@ -7,6 +7,7 @@ Two kinds, kept apart on purpose:
 A flag is False when the values it needs are missing: no evidence of a problem is not a problem.
 Thresholds were chosen from the data distributions; see docs/data_model.md section 3.2.
 """
+import numpy as np
 import pandas as pd
 
 from .clean import FATHOM_M, load_vessels
@@ -14,6 +15,8 @@ from .clean import FATHOM_M, load_vessels
 SPEED_MISMATCH_KN = 1.0
 SPEED_RANGE_KN = (2.0, 5.0)
 DEPTH_TOLERANCE_FM = 10
+PAIRED_DISTANCE_NMI = 3
+PAIRED_MISSION_SHARE = 0.5
 
 PRIMARY_KEYS = {
     "missions": ["mission"],
@@ -44,7 +47,35 @@ def flag_sets(sets: pd.DataFrame, strata: pd.DataFrame) -> pd.DataFrame:
     too_shallow = depth_fm < out["stratum"].map(bands["depth_min_fm"]) - DEPTH_TOLERANCE_FM
     too_deep = depth_fm > out["stratum"].map(bands["depth_max_fm"]) + DEPTH_TOLERANCE_FM
     out["qc_depth_outside_stratum"] = (too_shallow | too_deep).fillna(False)
+    out["qc_comparative_fishing"] = _comparative_fishing(out)
     return out
+
+
+def _comparative_fishing(sets: pd.DataFrame) -> pd.Series:
+    """Tows from a second vessel fishing beside the main survey vessel (a vessel calibration experiment).
+
+    They repeat stations the main vessel already fished, so the stratified index must leave them out.
+    The open data has no tow-type column to mark them, so a mission is flagged when most of its tows
+    start within 3 nmi of a tow by the year's main vessel. Time is not used: the second vessel came back
+    to the stations 3-9 days later (2005 Teleost, 1981 Lady Hammond). A vessel sharing the survey works
+    other strata instead (1991: nearest tows 21-224 nmi apart).
+    """
+    flagged = pd.Series(False, index=sets.index, dtype="boolean")
+    for _, year in sets.groupby("year"):
+        tows_per_vessel = year["vessel_code"].value_counts()
+        if len(tows_per_vessel) < 2:
+            continue
+        main = year[year["vessel_code"] == tows_per_vessel.idxmax()]
+        for _, mission in year[year["vessel_code"] != tows_per_vessel.idxmax()].groupby("mission"):
+            lat = mission["start_lat"].to_numpy(float)[:, None]
+            main_lat = main["start_lat"].to_numpy(float)[None, :]
+            north_nmi = (lat - main_lat) * 60
+            east_nmi = (mission["start_lon"].to_numpy(float)[:, None] - main["start_lon"].to_numpy(float)[None, :]) \
+                * 60 * np.cos(np.radians((lat + main_lat) / 2))
+            paired = (np.hypot(north_nmi, east_nmi) <= PAIRED_DISTANCE_NMI).any(axis=1)
+            if paired.mean() >= PAIRED_MISSION_SHARE:
+                flagged[mission.index] = True
+    return flagged
 
 
 def flag_catch(catch: pd.DataFrame) -> pd.DataFrame:

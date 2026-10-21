@@ -30,6 +30,11 @@ def test_zero_rules_from_data_model(built):
     assert catch["qc_weight_zero"].sum() == 8861
 
 
+def test_comparative_fishing_flags_exactly_the_two_calibration_missions(built):
+    sets = built[0]["sets"]
+    assert set(sets.loc[sets["qc_comparative_fishing"], "mission"]) == {"HAM1981060", "TEL2005605"}
+
+
 def test_parquet_round_trip_keeps_types(built):
     tables, out = built
     sets = pd.read_parquet(out / "sets.parquet")

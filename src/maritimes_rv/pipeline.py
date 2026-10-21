@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import clean, qc, raw
+from . import clean, index, qc, raw
+
+CLEAN_TABLES = ("missions", "sets", "catch", "species", "strata")
 
 
 def build_tables(raw_dir: Path) -> dict[str, pd.DataFrame]:
@@ -66,3 +68,37 @@ def build(raw_dir: Path, out_dir: Path) -> dict[str, pd.DataFrame]:
     tables = build_tables(raw_dir)
     write_tables(tables, raw_dir, out_dir)
     return tables
+
+
+def read_clean(clean_dir: Path) -> dict[str, pd.DataFrame]:
+    return {name: pd.read_parquet(clean_dir / f"{name}.parquet") for name in CLEAN_TABLES}
+
+
+def build_products(clean_dir: Path, out_dir: Path, convert: bool = False,
+                   species_codes: list[int] | None = None) -> dict[str, pd.DataFrame]:
+    t = read_clean(clean_dir)
+    products = {
+        "index": index.build_index(t["sets"], t["catch"], t["species"], t["strata"], species_codes, convert),
+        "bottom_temp": index.build_bottom_temperature(t["sets"], t["strata"]),
+    }
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, table in products.items():
+        table.to_parquet(out_dir / f"{name}.parquet", index=False)
+        table.to_csv(out_dir / f"{name}.csv", index=False)
+
+    clean_manifest = clean_dir / "manifest.json"
+    manifest = {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "package_version": version("maritimes-rv"),
+        "clean_manifest_sha256": hashlib.sha256(clean_manifest.read_bytes()).hexdigest() if clean_manifest.exists() else None,
+        "parameters": {
+            "conversion_factors_applied": convert,
+            "standard_tow_nmi": index.STANDARD_TOW_NMI,
+            "wingspread_ft": index.WINGSPREAD_FT,
+            "complete_area_share": index.COMPLETE_AREA_SHARE,
+            "regions": {region: len(members) for region, members in index.region_strata(t["strata"]).items()},
+        },
+        "tables": {name: {"rows": len(table), "columns": list(table.columns)} for name, table in products.items()},
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return products

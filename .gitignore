@@ -1,6 +1,7 @@
 # Raw downloads and generated tables are rebuilt from the official source, not versioned
 data/raw/
 data/clean/
+data/products/
 
 .venv/
 __pycache__/

@@ -1,0 +1,29 @@
+# Trippel, E.A. & Brown, L.L. 1993/1994. DFO CSAS Res. Doc. 93/60 and 94/67, Table 11 TOTAL row:
+# stratified average numbers per tow, summer survey, strata 440-495, no conversion factors (sum of numbers at age).
+# https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/149777.pdf ; .../170762.pdf  Transcribed 2026-10-21.
+# 1979 uses 94/67 (2.596; 93/60 prints 2.606). 1970 TOTAL printed 3.174 although ages sum to 3.167.
+year,mean_number_per_tow
+1970,3.174
+1971,1.638
+1972,0.860
+1973,4.118
+1974,2.087
+1975,1.209
+1976,3.367
+1977,6.158
+1978,2.595
+1979,2.596
+1980,13.650
+1981,2.267
+1982,4.433
+1983,3.763
+1984,5.816
+1985,17.729
+1986,6.101
+1987,18.546
+1988,9.621
+1989,5.094
+1990,29.065
+1991,7.273
+1992,5.473
+1993,20.380

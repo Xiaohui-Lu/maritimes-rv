@@ -1,0 +1,6 @@
+species_code,vessel_codes,factor,source
+11,A;H,1.2,"Fanning (1985) CAFSAC Res. Doc. 85/3, as applied in RVTransmogrifier applyConversionFactors.R (stored there as divisor 0.83333)"
+40,A;H,0.8,"Fanning (1985) CAFSAC Res. Doc. 85/3, as applied in RVTransmogrifier applyConversionFactors.R (stored there as divisor 1.25)"
+41,A;H,0.8,"Fanning (1985) CAFSAC Res. Doc. 85/3, as applied in RVTransmogrifier applyConversionFactors.R (stored there as divisor 1.25)"
+42,A;H,0.8,"Fanning (1985) CAFSAC Res. Doc. 85/3, as applied in RVTransmogrifier applyConversionFactors.R (stored there as divisor 1.25)"
+43,A;H,0.8,"Fanning (1985) CAFSAC Res. Doc. 85/3, as applied in RVTransmogrifier applyConversionFactors.R (stored there as divisor 1.25)"
