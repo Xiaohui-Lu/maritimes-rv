@@ -1,0 +1,70 @@
+name: Data release
+
+# Once a month, download the DFO source data and compare its fingerprint with the latest release.
+# If it changed (or there is no release yet), rebuild everything, run the full test suite, and
+# publish a new release with the data package. Run it by hand with "force" to release regardless.
+on:
+  schedule:
+    - cron: "0 9 1 * *"  # 09:00 UTC on the 1st of each month
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Publish a release even if the source data has not changed
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # to create releases
+
+concurrency:
+  group: data-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Install
+        run: uv sync --locked
+
+      - name: Download source data
+        run: uv run maritimes-rv fetch
+
+      - name: Compare with the latest release
+        id: compare
+        # Fingerprints are compared by content (maritimes-rv sources --compare), not byte for byte.
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Forced release." >> "$GITHUB_STEP_SUMMARY"
+          elif ! gh release download --pattern sources.json --output sources.old.json 2>/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "No previous release with sources.json; publishing the first one." >> "$GITHUB_STEP_SUMMARY"
+          elif uv run maritimes-rv sources --compare sources.old.json >> "$GITHUB_STEP_SUMMARY"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A failure in any of these steps (for example a new vessel the reference tables do not know,
+      # which fails the integrity checks) stops the release and GitHub notifies the repository owner.
+      - name: Build and test
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          uv run maritimes-rv clean
+          uv run maritimes-rv index
+          uv run pytest -q
+
+      - name: Publish release
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          date=$(date -u +%Y-%m-%d)
+          uv run maritimes-rv release --tag "$date" --out dist
+          gh release create "data-$date" \
+            dist/maritimes-rv-data-"$date".zip dist/sources.json dist/SHA256SUMS \
+            --title "Survey data $date" --notes-file dist/release_notes.md

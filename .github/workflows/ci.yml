@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Install
+        run: uv sync --locked
+
+      # The end-to-end and published-index tests need the real data. If DFO's servers are down,
+      # those tests are skipped rather than failing the build, and a warning says so.
+      - name: Download source data
+        id: fetch
+        continue-on-error: true
+        run: uv run maritimes-rv fetch
+
+      - name: Test
+        run: uv run pytest -q
+
+      - name: Warn if real-data tests were skipped
+        if: steps.fetch.outcome != 'success'
+        run: echo "::warning::Could not download the DFO source data; tests that need it were skipped."

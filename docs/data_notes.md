@@ -198,7 +198,7 @@ Found by comparing the haddock index with a published DFO table.
 
 ## 5. Reproducing the REST query
 
-Service root:
+`maritimes-rv fetch` runs this query (and downloads the CSV package) automatically. Service root:
 `https://egisp.dfo-mpo.gc.ca/arcgis/rest/services/open_data_donnees_ouvertes/maritimes_summer_research_vessel_survey_en/MapServer`
 
 - Layer 0: Maritimes Summer RV Survey (tow points)

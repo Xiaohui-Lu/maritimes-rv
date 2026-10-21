@@ -18,23 +18,49 @@ The method follows DFO's own R implementation and is validated against it and ag
 
 Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 
+To use the tables without running anything, download a ready-made release instead ([below](#ready-made-data)).
+
 ```bash
 uv sync
-
-# 1. Survey tables (CSV package from open.canada.ca)
-mkdir -p data/raw
-curl -L -o data/raw/SUMMER_csv.zip "https://api-proxy.edh-cde.dfo-mpo.gc.ca/catalogue/records/1366e1f1-e2c8-4905-89ae-e10f1be0a164/attachments/SUMMER_csv.zip"
-uv run python -m zipfile -e data/raw/SUMMER_csv.zip data/raw/SUMMER_csv
-
-# 2. Stratum areas: not in the CSV package, only in the GIS service
-curl -o data/raw/rest_strata_layer1.json "https://egisp.dfo-mpo.gc.ca/arcgis/rest/services/open_data_donnees_ouvertes/maritimes_summer_research_vessel_survey_en/MapServer/1/query?where=1%3D1&outFields=STRAT,DMIN,DMAX,AREA,DEPTH&returnGeometry=false&orderByFields=STRAT&f=json"
-
-# 3. Build
-uv run maritimes-rv clean    # data/raw   -> data/clean    (5 tables + manifest)
-uv run maritimes-rv index    # data/clean -> data/products (index, bottom_temp + manifest)
+uv run maritimes-rv fetch    # DFO open data -> data/raw     (CSV package + stratum areas)
+uv run maritimes-rv clean    # data/raw      -> data/clean   (5 tables + manifest)
+uv run maritimes-rv index    # data/clean    -> data/products (index, bottom_temp + manifest)
 ```
 
+`fetch` downloads the survey's CSV package from open.canada.ca and the stratum areas from DFO's GIS service. The stratum areas are not in the CSV package.
+
 Each `manifest.json` records the SHA-256 of the input files and the parameters used. DFO updates the dataset in place, so this ties every output to the exact data that produced it.
+
+## Ready-made data
+
+Each GitHub release of this repository includes `maritimes-rv-data-<date>.zip`. It contains:
+
+- every cleaned table and product, as both Parquet and CSV;
+- `data_dictionary.csv`, describing every column;
+- a README with the caveats that matter for analysis;
+- the manifests.
+
+`SHA256SUMS` lets you verify the download. `sources.json` records which version of the DFO source data the release was built from.
+
+```python
+import pandas as pd
+index = pd.read_parquet("maritimes-rv-data-2026-10-21/products/index.parquet")
+haddock = index.query("species_code == 11 and region == '4X5Y' and complete")
+```
+
+R users can read the same files with `arrow::read_parquet()`. With DuckDB, the files can be queried directly in SQL.
+
+## Automated updates
+
+Two GitHub Actions workflows keep the data current and the code honest.
+
+- **CI** (`.github/workflows/ci.yml`) runs on every push and pull request. It downloads the real data and runs the full test suite, including the regression test against the published DFO haddock index.
+- **Data release** (`.github/workflows/data-release.yml`) runs on the 1st of each month:
+  1. It downloads the DFO source data and fingerprints it (`maritimes-rv sources`).
+  2. It compares the fingerprint with the one attached to the latest release.
+  3. Only if the data changed does it rebuild everything, rerun the tests, and publish a new release (`maritimes-rv release`). It can also be run by hand, with an option to publish regardless.
+
+  A source change the pipeline cannot handle stops the release instead of publishing wrong numbers. For example, a new vessel missing from the reference tables fails the integrity checks.
 
 ## Outputs
 
@@ -117,6 +143,21 @@ Things you need to know before using these files, none of which are stated in th
 - the effect of the vessel conversion;
 - a 1.4 °C rise in summer bottom temperature between 1970–99 and 2010–20.
 
+## Status and roadmap
+
+Done:
+
+- Clean, typed tables, with quality flags and integrity checks
+- Stratified abundance and biomass indices and bottom-temperature summaries, validated against DFO's code and published indices
+- Example analysis (4X5Y haddock)
+- `fetch` command, monthly update check and automated data releases
+
+Planned:
+
+- **A query layer**: a static web page to browse and download indices by species and region, or a small read-only API.
+- **Bottom temperature merged from CTD profiles** (CIOOS Atlantic ERDDAP), to fill the years the survey tables lack (2005, 2021–2023).
+- **WoRMS identifiers for species**, for interoperability with OBIS and FishGlob.
+
 ## Limitations
 
 - **Design-based indices only.** They don't adjust for changes in distribution or catchability. Model-based indices are future work.
@@ -135,12 +176,13 @@ This project differs in being Python-based, depending only on the public open-da
 ## Project layout
 
 ```
-src/maritimes_rv/   raw.py -> clean.py -> qc.py -> index.py; pipeline.py and cli.py tie them together
+src/maritimes_rv/   fetch.py -> raw.py -> clean.py -> qc.py -> index.py -> release.py; pipeline.py and cli.py tie them together
   reference/        hand-curated tables (vessel names, conversion factors), each row with its source
 tests/              unit tests and end-to-end tests on the real data (skipped if data/raw is absent)
 validation/         DFO code port, published-index comparison, transcribed published tables
 examples/           4X5Y haddock analysis, figures and the table behind them
 docs/               data_notes.md (raw data issues in detail), data_model.md (tables, method, validation)
+.github/workflows/  CI tests and the monthly data-release check
 ```
 
 Run the tests with `uv run pytest`.

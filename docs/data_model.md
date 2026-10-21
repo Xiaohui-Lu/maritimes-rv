@@ -19,7 +19,10 @@ data/raw/                      downloaded files, never modified, not in git
 src/maritimes_rv/reference/    hand-curated reference tables shipped with the package, each row with its source
 data/clean/                    cleaned tables: one Parquet and one CSV per table, plus manifest.json; not in git
 data/products/                 indices and bottom temperature, plus manifest.json; not in git
+dist/                          a data release package (maritimes-rv release); not in git
 ```
+
+`maritimes-rv fetch` fills `data/raw/`. `maritimes-rv sources` prints a content fingerprint of those files; the monthly release workflow compares it with the latest release to decide whether to publish a new one.
 
 ```
 missions (mission)
